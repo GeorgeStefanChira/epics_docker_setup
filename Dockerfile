@@ -9,6 +9,7 @@ RUN apt install -y build-essential
 RUN apt install -y tree
 RUN apt install -y libreadline6-dev
 RUN apt install -y libtirpc-dev
+RUN apt install -y re2c
 
 # Create main EPICS folder that will hold EPICS 7 and Support
 RUN mkdir EPICS 
@@ -18,38 +19,24 @@ RUN cd EPICS/epics-base && make
 # Add file paths to envirorment
 ENV PATH=/EPICS/epics-base/bin/linux-x86_64:${PATH}
 
-FROM epics-7-base AS epics-7-asyn
+FROM epics-7-base AS epics-7-modules
 
-##### Install Asyn ######################################
+##### Install Modules ###################################
 
-RUN mkdir -p EPICS/support && \
-    cd /EPICS/support && \
-    git clone https://github.com/epics-modules/asyn.git
+# make sure python exists and we create the right venv
+RUN apt install -y python3-pip
 
-RUN dpkg -L libtirpc-dev
+COPY requirements.txt EPICS/
+COPY module_installer.py EPICS/
 
-COPY support/asyn/RELEASE /EPICS/support/asyn/configure/
-RUN cat /EPICS/support/asyn/configure/RELEASE
-COPY support/asyn/CONFIG_SITE /EPICS/support/asyn/configure/
-RUN cat /EPICS/support/asyn/configure/CONFIG_SITE
+RUN pip install --no-cache-dir --break-system-packages --upgrade pip && \
+    pip install --no-cache-dir --break-system-packages -r EPICS/requirements.txt 
 
-RUN cd /EPICS/support/asyn && make
-
-##### Install StreamDevice ##############################
-
-FROM epics-7-asyn AS epics-7-stream
-
-RUN cd /EPICS/support && \
-    git clone https://github.com/paulscherrerinstitute/StreamDevice.git && \
-    cd StreamDevice/ && rm GNUmakefile
-
-COPY support/StreamDevice/RELEASE /EPICS/support/StreamDevice/configure/
-
-RUN cd /EPICS/support/StreamDevice && make
+RUN cd EPICS/ && python3 module_installer.py
 
 ###### Test the build with a simple ioc #################
 
-FROM epics-7-stream AS epics-7-base-test
+FROM epics-7-modules AS epics-7-base-test
 
 ARG testdir=/EPICS/test/testIoc
 
