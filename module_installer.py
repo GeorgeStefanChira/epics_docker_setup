@@ -1,230 +1,217 @@
 # @brief EPICS installer
 #
 # A small python script that instals EPICS modules on Ubuntu 22.04
+# Takes two arguments:
 #
+# path to install directory
+# path to modules.yml file
 # TODO:
 #   - add a file that keeps track of installs
 #   - move the modules dict so that we can reference other modules (for dependency management)
-#   - check operation time for each function
-#   - move git cloning outside install_modules method. As of now, async doesn't help much this way
 
 import os
+import sys
+import yaml
+import requests
+import tarfile
 import subprocess
 import logging
 import asyncio
 
-PIPE = subprocess.PIPE
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
-home_dir = ""
 
-
-def replace_line(file_: str = None, replace: dict = None):
+class EPICS_module_installer:
     """
-    Searches file_ and use replace dictionary to change lines
+    # Installs EPICS modules using a yml file
 
-    Opens a file, reads the lines, makes a backup copy, and then replaces the lines according to
-    the replace dict.
+    ## Yaml file format
 
-    Args:
-        file_ (str): Path to file
-        replace (dict): {'old line / string we look for' : 'new line to insert in place'}
+    ----------------
+
+    nickname-of-the-module:
+        name: "This is the string used in RELEASE files as a path variable"
+        version: "Version string as it appears in the link"
+        binary: "link to download the binary"
+        git: "link to git repo" (this is only used when binary link doesn't exist)
+        dependency: "other EPICS modules this depends on"
+            - nickname of dependency 1
+            - nickname of dependency 2
+            - nickname of dependency 3
+        add_to_file:
+            CONFIG_SITE:
+                - "Line to be added to CONFIG_SITE.local"
+            RELEASE:
+                - "Line to be added to RELEASE.local"
+
+    ----------------
+
+    Nickname is used in folder names and when specifying other modules as dependencies
+
+    The name must always be the string used by other modules as a path file.
+
+    Version is required for binary installs but will be ignored when using git cloning.
+
+    Only CONFIG_SITE and RELEASE are parsed when adding extra lines to files.
     """
-    # open file and save lines in a list
-    try:
-        f = open(file_, 'r')
-        lines = f.readlines()
-        f.close()
-    except FileNotFoundError as err:
-        logger.error(err)
-        return
 
-    new_file_as_list = []
-    for line in lines:
-        current_line = line
-        for old_line, new_line in replace.items():
-            if old_line in line:
-                # easiest to just replace the line
-                current_line = new_line
-        new_file_as_list.append(current_line)
+    def __init__(self, install_path: str, modules_file: str) -> None:
+        """
+        Reads a yml file and installs EPICS modules from there
 
-    # Create a backup
-    f = open(f"{file_}.backup", 'w')
-    f.writelines(lines)
-    f.close()
+        Args:
+            install_path (str): path to parent directory of EPICS
+            modules_file (str): path to modules.yml file
+        """
+        self.log_ = logging.getLogger(__name__)
+        self.log_.setLevel(level=logging.DEBUG)
+        self.install_path = install_path
+        self.support = f"{install_path}/EPICS/support"
 
-    # Overwrite the old one
-    f = open(file_, 'w')
-    f.writelines(new_file_as_list)
-    f.close()
+        if not os.path.isdir(f"{install_path}/EPICS"):
+            os.mkdir(f"{install_path}/EPICS")
 
+        if not os.path.isdir(f"{install_path}/EPICS/support"):
+            os.mkdir(f"{install_path}/EPICS/support")
 
-async def git_clone(url: str = None):
-    """Git clone public repos
-    """
-    process = subprocess.Popen(['git', 'clone', url],
-                               cwd=f"{home_dir}/EPICS/support",
-                               stdout=PIPE, stderr=PIPE)
-    stdoutput, stderroutput = process.communicate()
+        with open(modules_file, 'r') as file:
+            self.module_list = yaml.safe_load(file)
 
-    if 'fatal' in str(stderroutput) or 'fatal' in str(stdoutput):
-        logger.error(f"cloning {url} encountered error =========")
-        raise ValueError("BAD")
-        # logger.error(f"stdoutput = {str(stdoutput)}, stderroutput = {str(stderroutput)}")
-    # else:
-        # logger.info(f"stdoutput = {str(stdoutput)}, stderroutput = {str(stderroutput)}")
+        self.create_dependency_files()
 
+    def create_dependency_files(self):
+        """
+        Creates RELEASE.local and CONFIG_PARSE.local
 
-async def install_module(details: dict = None):
-    """
-    Instals EPICS modules
+        Loops over the modules_list and creates the file lines in two lists then writes the files.
+        """
 
-    Args:
-        dependencies (list, optional): Strings of dependencies names.
-                                       Defaults to None.
-    """
-    # check dependencies
-    dependencies = details["dependencies"]
-    for key, item in dependencies.items():
-        if not os.path.isdir(f"/{home_dir}/EPICS/support/{key}"):
-            # do a bit of recursion
-            await install_module(item)
+        release_lines = []
+        config_lines = []
 
-    # check if it already exists
-    # if not os.path.isdir(f"/{home_dir}/EPICS/support/{details['dir_name']}"):
+        for name, module in self.module_list.items():
 
-    # git pull library
-    await git_clone(details["link"])
+            # in the case where we use git clone versions aren't added
+            # this only happens with seq
+            if 'version' in module:
+                release_lines.append(f"{module['name']}=$(SUPPORT)/{name}-{module['version']}\n")
+            else:
+                release_lines.append(f"{module['name']}=$(SUPPORT)/{name}\n")
+            # Don't miss additional lines specified
+            if 'add_to_file' in module:
+                if 'RELEASE' in module['add_to_file']:
+                    for item in module['add_to_file']['RELEASE']:
+                        release_lines.append(item + '\n')
+                if 'CONFIG_SITE' in module['add_to_file']:
+                    for item in module['add_to_file']['CONFIG_SITE']:
+                        config_lines.append(item + '\n')
 
-    # all RELEASE files start with wrong paths for epics. Add this here:
+        with open(f"{self.support}/RELEASE.local", 'w+') as release_file:
+            release_file.writelines(release_lines)
 
-    release_file = f"{home_dir}/EPICS/support/{details['dir_name']}/configure/RELEASE"
+        with open(f"{self.support}/CONFIG_SITE.local", 'w+') as config_file:
+            config_file.writelines(config_lines)
 
-    replace_dict = details['change_files']
-    replace_dict['configure/RELEASE']["EPICS_BASE="] = f"EPICS_BASE={home_dir}/EPICS/epics-base\n"
-    replace_dict['configure/RELEASE']["SUPPORT="] = f"SUPPORT={home_dir}/EPICS/support\n"
+    async def get_module(self, name: str,  module: dict):
+        """
+        Downloads the module
 
-    # Change files
+        Args:
+            name (str): nickname from yaml file
+            module (dict): dictionary of module data
+        """
 
-    # the 'change_files' entry is a set of keys and dictionaries. The key is the path to the file
-    # from the module folder, the dictionary pairs any line we want to replace with the new line
-    # so the form is:
+        if "binary" in module:
+            if os.path.isdir(f"{self.support}/{name}-{module['version']}"):
+                # file already exists
+                return
 
-    # 'path to file' : {
-    #                       'old line / string we look for' : 'new line to insert in place'
-    #                   }
+            url = module['binary']
+            response = requests.get(url, stream=True)
+            if response.status_code == 200:
+                file = tarfile.open(fileobj=response.raw, mode="r|gz")
+                file.extractall(f"{self.support}")
+                return
 
-    for file_name, line_to_replace in replace_dict.items():
+        elif "git" in module:
+            # we don't check git because git clone will ignore it
+            process = subprocess.Popen(['git', 'clone', module['git'], name],
+                                       cwd=f"{self.support}",
+                                       stdout=PIPE, stderr=PIPE)
+            stdoutput, stderroutput = process.communicate()
+            if 'fatal' not in str(stderroutput) or 'fatal' not in str(stdoutput):
+                return
 
-        release_file = f"{home_dir}/EPICS/support/{details['dir_name']}/{file_name}"
-        replace_line(release_file, line_to_replace)
+        module.pop(name)
+        self.log_.warning(f"Module {name} download failed, skipping install")
 
-    # make
+    async def install_module(self, name: str,  module: dict):
+        """
+        Runs make for each file
 
-    process = subprocess.Popen(['make'],
-                               cwd=f"{home_dir}/EPICS/support/{details['dir_name']}",
-                               stdout=PIPE, stderr=PIPE)
-    stdoutput, stderroutput = process.communicate()
+        Args:
+            name (str): nickname from yaml file
+            module (dict): dictionary of module data
+        """
 
-    if 'Error 2' in str(stderroutput):
-        logger.error(f"during make: {details['dir_name']} encountered error =========")
-        # logger.error(f"stderroutput = {str(stderroutput)}")
-    else:
-        logger.info(f"Successfully ran make for {details['dir_name']}")
-        # logger.info(f"stdoutput = {str(stdoutput)}, stderroutput = {str(stderroutput)}")
+        if 'version' in module:
+            process = subprocess.Popen(['make'],
+                                       cwd=f"{self.support}/{name}-{module['version']}",
+                                       stdout=PIPE, stderr=PIPE)
+        else:
+            process = subprocess.Popen(['make'],
+                                       cwd=f"{self.support}/{name}",
+                                       stdout=PIPE, stderr=PIPE)
+
+        stdoutput, stderroutput = process.communicate()
+        if 'Error 2' in str(stderroutput):
+            self.log_.error(f"during make: {name} encountered error")
+            self.log_.error(f"stderroutput = {str(stderroutput)}")
+        else:
+            self.log_.info(f"Successfully ran make for {name}")
+
+    async def setup_modules(self):
+        """
+        Loop over the module list and install each one
+        """
+        for name, module in self.module_list.items():
+            await self.get_module(name, module)
+
+        # separate the download and install to avoid missing dependencies
+
+        for name, module in self.module_list.items():
+            await self.install_module(name, module)
 
 
 async def main():
-    # entry point
-    # check that the file structure exists:
-    if not os.path.isdir(f"{home_dir}/EPICS"):
-        logger.warning("EPICS directory could not be found, \
-                       creating EPICS directory")
-        os.mkdir(f"{home_dir}/EPICS")
-    if not os.path.isdir(f"{home_dir}/EPICS/support"):
-        logger.warning("EPICS/support directory could not be found, \
-                       creating EPICS/support directory")
-        os.mkdir(f"{home_dir}/EPICS/support")
 
-    modules = {
-        "seq": {
-            "link": "https://github.com/ISISComputingGroup/EPICS-seq",
-            "change_files": {"configure/RELEASE": {
-                            "include $(TOP)/../../../ISIS_CONFIG": "",
-                            "-include $(TOP)/../../../ISIS_CONFIG.$(EPICS_HOST_ARCH)": ""}},
-            "dir_name": "EPICS-seq",
-            "dependencies": {}
-            },
-        "sscan": {
-            "link": "https://github.com/epics-modules/sscan",
-            "change_files": {"configure/RELEASE": {"SNCSEQ=": "SNCSEQ=$(SUPPORT)/EPICS-seq\n"}},
-            "dir_name": "sscan",
-            "dependencies": {}
-            },
-        "ipac": {
-            "link": "https://github.com/epics-modules/ipac",
-            "change_files": {"configure/RELEASE": {}},
-            "dir_name": "ipac",
-            "dependencies": {}
-            },
-        "autosave": {
-            "link": "https://github.com/epics-modules/autosave",
-            "change_files": {"configure/RELEASE": {}},
-            "dir_name": "autosave",
-            "dependencies": {}
-            },
-        "calc": {
-            "link": "https://github.com/epics-modules/calc",
-            "change_files": {"configure/RELEASE": {"SSCAN=": "SSCAN=$(SUPPORT)/sscan\n",
-                                                   "#SNCSEQ=": "SNCSEQ=$(SUPPORT)/EPICS-seq\n"
-                                                   }},
-            "dir_name": "calc",
-            "dependencies": {}
-            },
-        "asyn": {
-            "link": "https://github.com/epics-modules/asyn.git",
-            "change_files": {
-                    "configure/RELEASE": {"#CALC=": "CALC=$(SUPPORT)/calc\n",
-                                          "#SSCAN=": "SSCAN=$(SUPPORT)/sscan\n",
-                                          "#SNCSEQ=": "SNCSEQ=$(SUPPORT)/EPICS-seq\n"},
-                    "configure/CONFIG_SITE": {"# TIRPC=YES": " TIRPC=YES"}
-                },
-            "dir_name": "asyn",
-            "dependencies": {}
-            },
-        "busy": {
-            "link": "https://github.com/epics-modules/busy",
-            "change_files": {"configure/RELEASE": {"ASYN=": "ASYN=$(SUPPORT)/asyn\n",
-                                                   "AUTOSAVE=": "AUTOSAVE=$(SUPPORT)/autosave\n",
-                                                   "BUSY=": "BUSY=$(SUPPORT)/busy\n"
-                                                   }},
-            "dir_name": "busy",
-            "dependencies": {}
-            },
-        "StreamDevice": {
-            "link": "https://github.com/paulscherrerinstitute/StreamDevice.git",
-            "change_files": {"configure/RELEASE": {"ASYN=": "ASYN=$(SUPPORT)/asyn\n",
-                                                   "CALC=": "CALC=$(SUPPORT)/calc\n",
-                                                   "PCRE=": "PCRE_INCLUDE=/usr/include/pcre\n\
-                                                   PCRE_LIB=/usr/lib64\n"}},
-            "dir_name": "StreamDevice",
-            "dependencies": {}
-            },
-        "motor": {
-            "link": "https://github.com/epics-modules/motor",
-            "change_files": {"configure/RELEASE": {"ASYN=": "ASYN=$(SUPPORT)/asyn\n",
-                                                   "SNCSEQ=": "SNCSEQ=$(SUPPORT)/EPICS-seq\n",
-                                                   "BUSY=$": "BUSY=$(SUPPORT)/busy\n",
-                                                   "IPAC=$": "IPAC=$(SUPPORT)/ipac\n"
-                                                   }},
-            "dir_name": "motor",
-            "dependencies": {}
-            },
-    }
-    for item in modules.keys():
-        await install_module(modules[item])
+    if (args_count := len(sys.argv)) > 3:
+        print(f"Two arguments expected, got {args_count - 1}")
+        raise SystemExit(2)
+    elif args_count < 2:
+        print("You must specify the target directory")
+        raise SystemExit(2)
 
+    install_dir = sys.argv[1]
+    modules_file = sys.argv[2]
+
+    if not os.path.isdir(install_dir):
+        print("The target directory doesn't exist")
+        raise SystemExit(1)
+
+    if not os.path.isfile(modules_file):
+        print("Path to modules.yml file doesn't exist")
+        raise SystemExit(1)
+
+    print(modules_file)
+
+    installer = EPICS_module_installer("/home/gsc/Github/epics_docker_setup/junk",
+                                       "/home/gsc/Github/epics_docker_setup/modules.yml")
+    await installer.setup_modules()
 
 if __name__ == "__main__":
-    """"""
+
+    # i don't remember exactly what this does
+    PIPE = subprocess.PIPE
+    # General log levels are set to WARNING, particular logger will later be changed.
+    logging.basicConfig(level=logging.WARNING)
+
     asyncio.run(main())
