@@ -1,6 +1,3 @@
-seq:
-    name: "SNCSEQ"
-    git: "https://github.com/ISISComputingGroup/EPICS-seq"
 
 sscan: 
     name: "SSCAN"
@@ -39,15 +36,6 @@ asyn:
         - sscan
         - seq
 
-busy:
-    name: "BUSY"
-    version: "R1-7-4"
-    binary: "https://github.com/epics-modules/busy/archive/refs/tags/R1-7-4.tar.gz"
-    dependencies:
-        - asyn
-        - autosave
-        - busy
-
 StreamDevice:
     name: "STREAM"
     version: "2.8.26"
@@ -61,6 +49,14 @@ StreamDevice:
         - seq 
         - busy
 
+busy:
+    name: "BUSY"
+    version: "R1-7-4"
+    binary: "https://github.com/epics-modules/busy/archive/refs/tags/R1-7-4.tar.gz"
+    dependencies:
+        - asyn
+        - autosave
+
 motor:
     name: "MOTOR"
     version: "R7-3-1"
@@ -70,3 +66,7 @@ motor:
         - seq 
         - busy
         - ipac
+
+seq:
+    name: "SNCSEQ"
+    git: "https://github.com/ISISComputingGroup/EPICS-seq"
