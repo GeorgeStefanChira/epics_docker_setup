@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--Saved on 2024-06-21 16:58:57 by user-->
+<display version="2.0.0">
+  <name>Display</name>
+  <widget type="label" version="2.0.0">
+    <name>Label</name>
+    <class>TITLE</class>
+    <text>Wind Tunnel Control Panel</text>
+    <x use_class="true">0</x>
+    <y use_class="true">0</y>
+    <width>550</width>
+    <height>31</height>
+    <font use_class="true">
+      <font name="Header 1" family="Liberation Sans" style="BOLD" size="22.0">
+      </font>
+    </font>
+    <foreground_color use_class="true">
+      <color name="Text" red="0" green="0" blue="0">
+      </color>
+    </foreground_color>
+    <transparent use_class="true">true</transparent>
+  </widget>
+  <widget type="bool_button" version="2.0.0">
+    <name>Boolean Button</name>
+    <pv_name>user:smoke</pv_name>
+    <x>681</x>
+    <y>116</y>
+    <width>102</width>
+    <height>105</height>
+  </widget>
+  <widget type="scaledslider" version="2.0.0">
+    <name>Scaled Slider</name>
+    <pv_name>user:fanspeed</pv_name>
+    <x>39</x>
+    <y>94</y>
+    <width>347</width>
+    <height>54</height>
+  </widget>
+  <widget type="meter" version="3.0.0">
+    <name>Meter</name>
+    <pv_name>user:windspeed</pv_name>
+    <x>473</x>
+    <y>37</y>
+    <width>176</width>
+    <height>96</height>
+  </widget>
+  <widget type="meter" version="3.0.0">
+    <name>Meter_1</name>
+    <pv_name>user:liftforce</pv_name>
+    <x>474</x>
+    <y>162</y>
+    <width>177</width>
+    <height>104</height>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_1</name>
+    <x>837</x>
+    <y>732</y>
+    <width>1</width>
+    <height>1</height>
+  </widget>
+  <widget type="scaledslider" version="2.0.0">
+    <name>Scaled Slider_1</name>
+    <pv_name>user:pitchangle</pv_name>
+    <x>37</x>
+    <y>215</y>
+    <width>358</width>
+    <height>44</height>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_2</name>
+    <text>Fan Speed</text>
+    <x>111</x>
+    <y>65</y>
+    <width>200</width>
+    <height>29</height>
+    <horizontal_alignment>1</horizontal_alignment>
+    <vertical_alignment>1</vertical_alignment>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_3</name>
+    <text>Pitch angle</text>
+    <x>122</x>
+    <y>187</y>
+    <width>200</width>
+    <height>29</height>
+    <horizontal_alignment>1</horizontal_alignment>
+    <vertical_alignment>1</vertical_alignment>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_4</name>
+    <text>Smoke </text>
+    <x>686</x>
+    <y>74</y>
+    <width>93</width>
+    <height>40</height>
+    <horizontal_alignment>1</horizontal_alignment>
+    <vertical_alignment>2</vertical_alignment>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_5</name>
+    <text>Wind Speed</text>
+    <x>457</x>
+    <y>127</y>
+    <width>200</width>
+    <height>29</height>
+    <horizontal_alignment>1</horizontal_alignment>
+    <vertical_alignment>1</vertical_alignment>
+  </widget>
+  <widget type="label" version="2.0.0">
+    <name>Label_6</name>
+    <text>Lift Force</text>
+    <x>462</x>
+    <y>265</y>
+    <width>200</width>
+    <height>29</height>
+    <horizontal_alignment>1</horizontal_alignment>
+    <vertical_alignment>1</vertical_alignment>
+  </widget>
+</display>
