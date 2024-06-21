@@ -7,7 +7,7 @@
 #
 # Takes two arguments:
 #
-# path to install directory
+# path to install directory (EPICS)
 # path to modules.yml file
 #
 # The paths to the install directory and modules file can be relative.
@@ -73,7 +73,7 @@ class EPICS_module_installer:
         Reads a yml file and installs EPICS modules from there
 
         Args:
-            install_path (str): path to parent directory of EPICS
+            install_path (str): path to EPICS directory
             modules_file (str): path to modules.yml file
         """
         self.log_ = logging.getLogger(__name__)
@@ -81,13 +81,10 @@ class EPICS_module_installer:
         self.install_path = install_path
 
         # Make sure the install paths exist
-        if not os.path.isdir(f"{install_path}/EPICS"):
-            os.mkdir(f"{install_path}/EPICS")
+        if not os.path.isdir(f"{install_path}/support"):
+            os.mkdir(f"{install_path}/support")
 
-        if not os.path.isdir(f"{install_path}/EPICS/support"):
-            os.mkdir(f"{install_path}/EPICS/support")
-
-        self.support = f"{install_path}/EPICS/support"
+        self.support = f"{install_path}/support"
 
         # read the modules file
         with open(modules_file, 'r') as file:
