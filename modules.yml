@@ -69,4 +69,7 @@ motor:
 
 seq:
     name: "SNCSEQ"
+    edit_release:
+        - "include $(TOP)/../ISIS_CONFIG"
+        - "-include $(TOP)/../ISIS_CONFIG.$(EPICS_HOST_ARCH)"
     git: "https://github.com/ISISComputingGroup/EPICS-seq"

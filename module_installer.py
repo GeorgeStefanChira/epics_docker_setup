@@ -52,6 +52,9 @@ class EPICS_module_installer:
                 - "Line to be added to CONFIG_SITE.local"
             RELEASE:
                 - "Line to be added to RELEASE.local"
+        edit_release:
+            - "line 1"
+            - "line 2"
 
     ----------------
 
@@ -65,6 +68,8 @@ class EPICS_module_installer:
     added to the folder-name when creating folders and creating the RELEASE file.
 
     Only CONFIG_SITE and RELEASE are parsed when adding extra lines to files.
+
+    Edit release remove lines from RELEASE files. This is because of the sequencer.
     """
     ################################################################################################
 
@@ -108,7 +113,7 @@ class EPICS_module_installer:
         Loops over the modules_list and creates the file lines in two lists then writes the files.
         """
 
-        release_lines = []
+        release_lines = ["EPICS_BASE = /EPICS/epics-base\n"]
         config_lines = []
 
         for name, module in self.module_dict.items():
@@ -116,9 +121,10 @@ class EPICS_module_installer:
             # in the case where we use git clone versions aren't added
             # this only happens with seq
             if 'version' in module:
-                release_lines.append(f"{module['name']}=$(SUPPORT)/{name}-{module['version']}\n")
+                release_lines.append(f"{module['name']}={self.support}/{name}-{module['version']}\n"
+                                     )
             else:
-                release_lines.append(f"{module['name']}=$(SUPPORT)/{name}\n")
+                release_lines.append(f"{module['name']}={self.support}/{name}\n")
             # Don't miss additional lines specified
             if 'add_to_file' in module:
                 if 'RELEASE' in module['add_to_file']:
@@ -273,7 +279,7 @@ class EPICS_module_installer:
             self.log_.error(f"during make: {name} encountered error")
             self.log_.error(f"stderroutput = {str(stderroutput)}")
         else:
-            self.log_.info(f"Successfully ran make for {name}")
+            self.log_.info(f"Successfully ran make for {name}: \n {stdoutput} \n {stderroutput} \n")
 
         ############################################################################################
 
@@ -285,6 +291,10 @@ class EPICS_module_installer:
             module = self.module_dict[name]
             await self.get_module(name, module)
 
+            if 'edit_release' in module:
+                for item in module['edit_release']:
+                    self.replace_line(f"{self.support}/{name}/configure/RELEASE", {item: ""})
+
         # separate the download and install to avoid missing dependencies
 
         for name in self.modules_ordered:
@@ -292,6 +302,45 @@ class EPICS_module_installer:
             await self.install_module(name, module)
 
         ############################################################################################
+
+    def replace_line(self, file_: str = None, replace: dict = None):
+        """
+        Searches file_ and use replace dictionary to change lines
+
+        Opens a file, reads the lines, makes a backup copy, and then replaces the lines according to
+        the replace dict.
+
+        Args:
+            file_ (str): Path to file
+            replace (dict): {'old line / string we look for' : 'new line to insert in place'}
+        """
+        # open file and save lines in a list
+        try:
+            f = open(file_, 'r')
+            lines = f.readlines()
+            f.close()
+        except FileNotFoundError as err:
+            self.log_.error(err)
+            return
+
+        new_file_as_list = []
+        for line in lines:
+            current_line = line
+            for old_line, new_line in replace.items():
+                if old_line in line:
+                    # easiest to just replace the line
+                    current_line = new_line
+            new_file_as_list.append(current_line)
+
+        # Create a backup
+        f = open(f"{file_}.backup", 'w')
+        f.writelines(lines)
+        f.close()
+
+        # Overwrite the old one
+        f = open(file_, 'w')
+        f.writelines(new_file_as_list)
+        f.close()
 
 
 def check_path_to_modules(modules_file, current_directory):

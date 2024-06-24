@@ -1,0 +1,38 @@
+
+record(motor, "$(P)$(M)") {
+  field(SCAN, ".1 second")
+  field(DTYP, "asynMotor")
+  field(VELO, "10")
+  field(VMAX, "20")
+  field(OUT, "@asyn(\"pmac\",1)")
+  field(EGU, "mm/s")
+}
+
+record(ao, "$(user):fanspeed") {
+  field(OUT, "$(user):fanout01")
+}
+
+record(ai, "$(user):windspeed") {
+  field(SCAN, ".1 second")
+  field(INP, "$(user):fanout01")
+}
+
+record(bo, "$(user):smoke") {
+  field(SCAN, ".5 second")
+}
+
+record(calc, "$(user):forcecalc") {
+  field(SCAN, ".1 second")
+  field(CALC, "B*B*0.005")
+  field(INPA, "$(P)$(M)")
+  field(INPB, "$(user):fanout01")
+}
+
+record(ai, "$(user):liftforce") {
+  field(SCAN, ".1 second")
+  field(INP, "$(user):forcecalc")
+}
+
+record(fanout, "$(user):fanout01") {
+  field(SCAN, ".1 second")
+}

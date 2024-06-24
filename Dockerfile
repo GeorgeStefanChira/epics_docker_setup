@@ -24,7 +24,7 @@ FROM epics-7-base AS epics-7-modules
 
 ##### Install Modules ###################################
 
-# make sure python exists and we create the right venv
+# make sure python exists and we install the dependencies
 RUN apt install -y python3-pip
 
 COPY requirements.txt EPICS/
@@ -37,7 +37,7 @@ RUN cd EPICS/ && python3 module_installer.py
 
 ###### Test the build with a simple ioc #################
 
-FROM epics-7-modules AS epics-7-base-test
+# FROM epics-7-modules AS epics-7-base-test
 
 ARG testdir=/EPICS/example/exampleIoc
 
@@ -46,11 +46,28 @@ ENV PATH=/EPICS/epics-base/bin/linux-x86_64:${PATH}
 
 # Create a simple ioc
 RUN cd /EPICS/example/exampleIoc && \
-    makeBaseApp.pl -t ioc -u user exampleIoc && \
-    makeBaseApp.pl -i -t ioc -u user exampleIoc  && \
-# here is where to replace the db and st.cmd files for a custom ioc
+    makeBaseApp.pl -t example -u user exampleIoc && \
+    makeBaseApp.pl -i -t example -u user exampleIoc
+
+# Replace the ioc files
+COPY scripts/configure/RELEASE EPICS/example/exampleIoc/configure
+COPY scripts/db/example.db EPICS/example/exampleIoc/db
+COPY scripts/exampleIocApp/Db/Makefile EPICS/example/exampleIoc/exampleIocApp/Db/Makefile
+COPY scripts/exampleIocApp/src/Makefile EPICS/example/exampleIoc/exampleIocApp/src/Makefile
+COPY scripts/iocBoot/iocexampleIoc/startExample.cmd EPICS/example/exampleIoc/iocBoot/iocexampleIoc/startExample.cmd
+
+RUN cd $EPICS && ls
+RUN cd /EPICS/support && ls
+RUN cd /EPICS/support/motor-R7-3-1 && ls
+RUN cd /EPICS/support/busy-R1-7-4 && ls
+RUN cd /EPICS/support/busy-R1-7-4/dbd && ls
+RUN cd /EPICS/support/motor-R7-3-1/dbd && ls
+RUN cd /EPICS/example && tree
+
+
+RUN cd /EPICS/example/exampleIoc && \
     make && \
     cd iocBoot/iocexampleIoc && \
-    chmod u+x st.cmd
+    chmod u+x startExample.cmd
 
 CMD cd /EPICS/example/exampleIoc/iocBoot/iocexampleIoc && ./startExample.cmd
