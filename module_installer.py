@@ -113,7 +113,8 @@ class EPICS_module_installer:
         Loops over the modules_list and creates the file lines in two lists then writes the files.
         """
 
-        release_lines = ["EPICS_BASE = /EPICS/epics-base\n"]
+        release_lines = [f"EPICS_BASE = {self.install_path}/epics-base\n",
+                         f"SUPPORT = {self.support}\n"]
         config_lines = []
 
         for name, module in self.module_dict.items():
@@ -275,11 +276,11 @@ class EPICS_module_installer:
 
         # Some error handling.
         stdoutput, stderroutput = process.communicate()
-        if 'Error 2' in str(stderroutput):
-            self.log_.error(f"during make: {name} encountered error")
-            self.log_.error(f"stderroutput = {str(stderroutput)}")
+        if 'Error 1' in str(stderroutput) or 'Error 2' in str(stderroutput):
+            self.log_.error(f"\n during make: {name} encountered error \n ")
+            self.log_.error(f"stderroutput = {stderroutput} \n {stdoutput}")
         else:
-            self.log_.info(f"Successfully ran make for {name}: \n {stdoutput} \n {stderroutput} \n")
+            self.log_.info(f"\n \n Successfully ran make for {name} \n \n")
 
         ############################################################################################
 
