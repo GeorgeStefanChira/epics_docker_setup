@@ -62,4 +62,4 @@ RUN cd /EPICS/example/exampleIoc && \
     cd iocBoot/iocexampleIoc && \
     chmod u+x startExample.cmd
 
-    CMD cd /EPICS/example/exampleIoc/iocBoot/iocexampleIoc && ./startExample.cmd
+CMD cd /EPICS/example/exampleIoc/iocBoot/iocexampleIoc && ./startExample.cmd
