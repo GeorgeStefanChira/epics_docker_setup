@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ubuntu AS epics-7-base
+FROM ubuntu:jammy AS epics-7-base
 
 # Install general dependencies
 RUN apt-get update -y && apt-get upgrade -y
@@ -31,38 +31,30 @@ COPY requirements.txt EPICS/
 COPY module_installer.py EPICS/
 COPY modules.yml EPICS/
 
-RUN pip install --no-cache-dir --break-system-packages -r EPICS/requirements.txt 
+RUN pip install --no-cache-dir -r EPICS/requirements.txt 
 
 RUN cd EPICS/ && python3 module_installer.py 
 
 ###### Test the build with a simple ioc #################
 
-# FROM epics-7-modules AS epics-7-base-test
+FROM epics-7-modules AS epics-7-base-test
 
 ARG testdir=/EPICS/example/exampleIoc
 
 RUN mkdir -p ${testdir}
 ENV PATH=/EPICS/epics-base/bin/linux-x86_64:${PATH}
 
-# Create a simple ioc
+# Use the example template
 RUN cd /EPICS/example/exampleIoc && \
     makeBaseApp.pl -t example -u user exampleIoc && \
     makeBaseApp.pl -i -t example -u user exampleIoc
 
 # Replace the ioc files
 COPY scripts/configure/RELEASE EPICS/example/exampleIoc/configure
-COPY scripts/db/example.db EPICS/example/exampleIoc/db
-COPY scripts/exampleIocApp/Db/Makefile EPICS/example/exampleIoc/exampleIocApp/Db/Makefile
-COPY scripts/exampleIocApp/src/Makefile EPICS/example/exampleIoc/exampleIocApp/src/Makefile
+COPY scripts/exampleIocApp/Db/example.db EPICS/example/exampleIoc/exampleIocApp/Db
+COPY scripts/exampleIocApp/Db/Makefile EPICS/example/exampleIoc/exampleIocApp/Db
+COPY scripts/exampleIocApp/src/Makefile EPICS/example/exampleIoc/exampleIocApp/src
 COPY scripts/iocBoot/iocexampleIoc/startExample.cmd EPICS/example/exampleIoc/iocBoot/iocexampleIoc/startExample.cmd
-
-RUN cd $EPICS && ls
-RUN cd /EPICS/support && ls
-RUN cd /EPICS/support/motor-R7-3-1 && ls
-RUN cd /EPICS/support/busy-R1-7-4 && ls
-RUN cd /EPICS/support/busy-R1-7-4/dbd && ls
-RUN cd /EPICS/support/motor-R7-3-1/dbd && ls
-RUN cd /EPICS/example && tree
 
 
 RUN cd /EPICS/example/exampleIoc && \
@@ -70,4 +62,4 @@ RUN cd /EPICS/example/exampleIoc && \
     cd iocBoot/iocexampleIoc && \
     chmod u+x startExample.cmd
 
-CMD cd /EPICS/example/exampleIoc/iocBoot/iocexampleIoc && ./startExample.cmd
+    CMD cd /EPICS/example/exampleIoc/iocBoot/iocexampleIoc && ./startExample.cmd
