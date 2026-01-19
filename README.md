@@ -1,4 +1,9 @@
-# EPICS DOCKER SETUP
+# DEPRECATED
+
+This project as been depracted as there is no dependecies on it. Additionaly, there are other images for docker setups available.
+Feel free to use the contents of this project for anything you may need.
+
+## EPICS DOCKER SETUP
 
 Aim of this project: to create a simple docker image for learning purposes. At the moment it's not intended to be used for any projects, but feel free to use it as a base/reference material.
 
@@ -6,7 +11,8 @@ You can also use the python file to install EPICS modules.
 
 ---
 
-- [EPICS DOCKER SETUP](#epics-docker-setup)
+- [DEPRECATED](#deprecated)
+  - [EPICS DOCKER SETUP](#epics-docker-setup)
   - [Quick Install](#quick-install)
   - [Contributions](#contributions)
 
